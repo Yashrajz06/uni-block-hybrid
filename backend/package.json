@@ -1,0 +1,43 @@
+{
+  "name": "university-blockchain-backend",
+  "version": "1.0.0",
+  "description": "Backend API for Hybrid Blockchain University Data Management System",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "nodemon src/server.js",
+    "test": "jest",
+    "seed:demo": "node scripts/generateDemoData.js"
+  },
+  "keywords": [
+    "blockchain",
+    "university",
+    "api",
+    "express"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.18.2",
+    "mongoose": "^8.0.3",
+    "bcryptjs": "^2.4.3",
+    "jsonwebtoken": "^9.0.2",
+    "dotenv": "^16.3.1",
+    "cors": "^2.8.5",
+    "helmet": "^7.1.0",
+    "express-validator": "^7.0.1",
+    "ethers": "^6.9.0",
+    "ipfs-http-client": "^56.0.3",
+    "qrcode": "^1.5.3",
+    "crypto": "^1.0.1",
+    "multer": "^1.4.5-lts.1",
+    "axios": "^1.6.2",
+    "form-data": "^4.0.0",
+    "winston": "^3.11.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.2",
+    "jest": "^29.7.0"
+  }
+}
+

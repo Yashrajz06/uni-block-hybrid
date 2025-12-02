@@ -1,0 +1,43 @@
+version: '3.8'
+
+services:
+  mongodb:
+    image: mongo:6
+    container_name: university-mongodb-dev
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+    networks:
+      - university-network
+
+  ipfs:
+    image: ipfs/kubo:latest
+    container_name: university-ipfs-dev
+    ports:
+      - "4001:4001"
+      - "5001:5001"
+      - "8080:8080"
+    volumes:
+      - ipfs_data:/data/ipfs
+    networks:
+      - university-network
+
+  blockchain-node:
+    image: trufflesuite/ganache:latest
+    container_name: university-blockchain-dev
+    ports:
+      - "8545:8545"
+    command: ganache-cli --host 0.0.0.0 --port 8545 --deterministic
+    networks:
+      - university-network
+
+volumes:
+  mongodb_data:
+  ipfs_data:
+
+networks:
+  university-network:
+    driver: bridge
+
+

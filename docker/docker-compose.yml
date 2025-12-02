@@ -1,0 +1,79 @@
+version: '3.8'
+
+services:
+  mongodb:
+    image: mongo:6
+    container_name: university-mongodb
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+    environment:
+      MONGO_INITDB_DATABASE: university_blockchain
+    networks:
+      - university-network
+
+  ipfs:
+    image: ipfs/kubo:latest
+    container_name: university-ipfs
+    ports:
+      - "4001:4001"
+      - "5001:5001"
+      - "8080:8080"
+    volumes:
+      - ipfs_data:/data/ipfs
+    networks:
+      - university-network
+
+  blockchain-node:
+    image: trufflesuite/ganache:latest
+    container_name: university-blockchain
+    ports:
+      - "8545:8545"
+    command: ganache-cli --host 0.0.0.0 --port 8545 --deterministic
+    networks:
+      - university-network
+
+  backend:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.backend
+    container_name: university-backend
+    ports:
+      - "5000:5000"
+    environment:
+      - NODE_ENV=production
+      - MONGODB_URI=mongodb://mongodb:27017/university_blockchain
+      - BLOCKCHAIN_RPC_URL=http://blockchain-node:8545
+      - IPFS_API_URL=/ip4/ipfs/tcp/5001
+    depends_on:
+      - mongodb
+      - ipfs
+      - blockchain-node
+    networks:
+      - university-network
+    volumes:
+      - ../backend:/app
+      - /app/node_modules
+
+  frontend:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.frontend
+    container_name: university-frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+    networks:
+      - university-network
+
+volumes:
+  mongodb_data:
+  ipfs_data:
+
+networks:
+  university-network:
+    driver: bridge
+
+
