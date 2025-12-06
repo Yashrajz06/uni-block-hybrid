@@ -262,14 +262,25 @@ const issueTranscript = async (req, res) => {
         console.log(`[Admin Issue] Transcript hash: ${toBytes32(transcriptHash)}`);
         console.log(`[Admin Issue] IPFS hash: ${ipfsBytes32}`);
         
-        const tx = await contracts.transcriptManager.issueTranscript(
-          requestId,
-          toBytes32(transcriptHash),
-          ipfsBytes32
-        );
-        // Wait for transaction to be mined
-        const receipt = await tx.wait();
-        console.log('Transcript issued on blockchain:', requestId);
+        const hash32 = toBytes32(transcriptHash);
+const ipfs32 = ipfsBytes32;
+
+  const tx = await contracts.transcriptManager.issueTranscript(
+  requestId,
+  hash32,
+  ipfs32
+  );
+
+// Wait for blockchain transaction
+await tx.wait();
+console.log('Transcript issued on blockchain:', requestId);
+
+// 🔥 FIX: Save same blockchain values to DB
+  transcript.blockchainHash = hash32;     // MUST match blockchain
+  transcript.ipfsHash = ipfsBytes32;    // Blockchain format
+  transcript.ipfsCid = ipfsHash || "";  // Actual CID for retrieval
+  await transcript.save();
+
       } catch (error) {
         console.error('Blockchain transaction error:', error);
       }

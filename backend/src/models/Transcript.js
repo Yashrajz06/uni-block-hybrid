@@ -60,6 +60,7 @@ const transcriptSchema = new mongoose.Schema({
     revokedAt: Date,
     isActive: Boolean
   }],
+  ipfsCid: { type: String },
   createdAt: {
     type: Date,
     default: Date.now

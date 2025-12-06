@@ -26,6 +26,7 @@ const VerifierPortal = () => {
   const [scannerOpen, setScannerOpen] = useState(false);
   const [stats, setStats] = useState(null);
 
+  // Load stats on launch
   useEffect(() => {
     const loadStats = async () => {
       try {
@@ -38,6 +39,24 @@ const VerifierPortal = () => {
     loadStats();
   }, []);
 
+  // Helper to build fallback result if backend fails
+  const buildFailedResult = (id, type, message) => ({
+    verified: false,
+    score: 0,
+    credentialId: id || 'unknown',
+    credentialType: type || 'unknown',
+    details: {
+      hashMatch: false,
+      ipfsValid: false,
+      signatureValid: false,
+      timestampFreshness: 0
+    },
+    error: message
+  });
+
+  // ------------------------------
+  // VERIFY BY ID
+  // ------------------------------
   const handleVerifyById = async () => {
     if (!verificationId) {
       setError('Please enter a verification ID');
@@ -49,11 +68,9 @@ const VerifierPortal = () => {
     setResult(null);
 
     try {
-      // Extract type and id from verification ID
-      // Format: "transcript-TRX-..." or "certificate-CERT-..."
       let type = '';
       let id = '';
-      
+
       if (verificationId.startsWith('transcript-')) {
         type = 'transcript';
         id = verificationId.substring('transcript-'.length);
@@ -61,20 +78,31 @@ const VerifierPortal = () => {
         type = 'certificate';
         id = verificationId.substring('certificate-'.length);
       } else {
-        setError('Invalid ID format. Use "transcript-..." or "certificate-..."');
-        setLoading(false);
-        return;
+        throw new Error('Invalid ID format. Use "transcript-..." or "certificate-..."');
       }
-      
+
+      console.log('[Frontend] Verifying ID:', type, id);
+
       const response = await verifyService.verifyById(type, id, '', '');
-      setResult({ ...response.data, credentialType: type, credentialId: id });
+
+      setResult({
+        ...response.data,
+        credentialType: type,
+        credentialId: id
+      });
     } catch (err) {
-      setError(err.response?.data?.error || 'Verification failed');
+      console.error('Frontend ID verify error:', err);
+
+      const message = err.response?.data?.error || err.message || 'Verification failed';
+      setResult(buildFailedResult(verificationId, null, message));
     } finally {
-      setLoading(false);
+      setLoading(false); // ALWAYS stop spinner
     }
   };
 
+  // ------------------------------
+  // VERIFY BY QR
+  // ------------------------------
   const handleScanQR = (scannedData) => {
     setQrData(scannedData);
     setScannerOpen(false);
@@ -93,10 +121,13 @@ const VerifierPortal = () => {
     setResult(null);
 
     try {
+      console.log('[Frontend] Verifying QR payload:', dataToVerify);
       const response = await verifyService.verifyByQR(dataToVerify);
       setResult(response.data);
     } catch (err) {
-      setError(err.response?.data?.error || 'Verification failed');
+      console.error('Frontend QR verify error:', err);
+      const message = err.response?.data?.error || err.message || 'Verification failed';
+      setResult(buildFailedResult('QR-DATA', null, message));
     } finally {
       setLoading(false);
     }
@@ -120,28 +151,36 @@ const VerifierPortal = () => {
             Verify blockchain-backed university credentials in seconds using QR code or credential ID.
           </Typography>
 
-          {/* Stats strip */}
+          {/* Stats */}
           <Grid container spacing={2} sx={{ mb: 3 }}>
             <Grid item xs={12} md={4}>
               <Card>
                 <CardContent>
-                  <Typography variant="subtitle2" color="text.secondary">Verifications Today</Typography>
+                  <Typography variant="subtitle2" color="text.secondary">
+                    Verifications Today
+                  </Typography>
                   <Typography variant="h5">{stats?.today ?? 0}</Typography>
                 </CardContent>
               </Card>
             </Grid>
+
             <Grid item xs={12} md={4}>
               <Card>
                 <CardContent>
-                  <Typography variant="subtitle2" color="text.secondary">Total Verifications</Typography>
+                  <Typography variant="subtitle2" color="text.secondary">
+                    Total Verifications
+                  </Typography>
                   <Typography variant="h5">{stats?.total ?? 0}</Typography>
                 </CardContent>
               </Card>
             </Grid>
+
             <Grid item xs={12} md={4}>
               <Card>
                 <CardContent>
-                  <Typography variant="subtitle2" color="text.secondary">Demo Credential</Typography>
+                  <Typography variant="subtitle2" color="text.secondary">
+                    Demo Credential
+                  </Typography>
                   <Typography variant="body2" component="div" color="text.secondary">
                     Try: <Chip size="small" label="CERT-2024-DEMO-001" />
                   </Typography>
@@ -150,21 +189,18 @@ const VerifierPortal = () => {
             </Grid>
           </Grid>
 
-          {error && (
-            <Alert severity="error" sx={{ mb: 2 }}>
-              {error}
-            </Alert>
-          )}
+          {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
 
           <Grid container spacing={3}>
-            {/* QR Code Verification */}
+            {/* QR Code Section */}
             <Grid item xs={12} md={6}>
               <Card>
                 <CardContent>
                   <Typography variant="h6" gutterBottom>
-                    <QrCodeScanner sx={{ mr: 1, verticalAlign: 'middle' }} />
+                    <QrCodeScanner sx={{ mr: 1 }} />
                     Scan QR Code
                   </Typography>
+
                   <TextField
                     fullWidth
                     label="QR Code Data"
@@ -174,6 +210,7 @@ const VerifierPortal = () => {
                     onChange={(e) => setQrData(e.target.value)}
                     sx={{ mb: 2 }}
                   />
+
                   <Box sx={{ display: 'flex', gap: 1, mb: 2 }}>
                     <Button
                       variant="outlined"
@@ -184,6 +221,7 @@ const VerifierPortal = () => {
                       Scan QR Code
                     </Button>
                   </Box>
+
                   <Button
                     fullWidth
                     variant="contained"
@@ -201,17 +239,19 @@ const VerifierPortal = () => {
               <Card>
                 <CardContent>
                   <Typography variant="h6" gutterBottom>
-                    <Search sx={{ mr: 1, verticalAlign: 'middle' }} />
+                    <Search sx={{ mr: 1 }} />
                     Verify by ID
                   </Typography>
+
                   <TextField
                     fullWidth
                     label="Verification ID"
                     value={verificationId}
-                    onChange={(e) => setVerificationId(e.target.value)}
                     placeholder="e.g., transcript-TRX-123456"
+                    onChange={(e) => setVerificationId(e.target.value)}
                     sx={{ mb: 2 }}
                   />
+
                   <Button
                     fullWidth
                     variant="contained"
@@ -232,17 +272,29 @@ const VerifierPortal = () => {
                     <Typography variant="h6" gutterBottom>
                       Verification Result
                     </Typography>
-                    <Grid container spacing={3} sx={{ mt: 1 }}>
+
+                    <Grid container spacing={3}>
+                      {/* Left side - Icon + Score */}
                       <Grid item xs={12} md={4}>
-                        <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
+                        <Box
+                          sx={{
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            height: '100%'
+                          }}
+                        >
                           {result.verified ? (
                             <CheckCircle color="success" sx={{ fontSize: 64, mb: 1 }} />
                           ) : (
                             <Cancel color="error" sx={{ fontSize: 64, mb: 1 }} />
                           )}
+
                           <Typography variant="h5" gutterBottom>
                             {result.verified ? 'Credential Verified' : 'Verification Failed'}
                           </Typography>
+
                           <Box sx={{ position: 'relative', display: 'inline-flex', mt: 1 }}>
                             <CircularProgress
                               variant="determinate"
@@ -263,25 +315,29 @@ const VerifierPortal = () => {
                                 justifyContent: 'center'
                               }}
                             >
-                              <Typography variant="subtitle1" component="div">
-                                {Math.round(result.score || 0)}%
-                              </Typography>
+                              <Typography variant="subtitle1">{Math.round(result.score || 0)}%</Typography>
                             </Box>
                           </Box>
+
                           <Typography variant="caption" color="text.secondary" sx={{ mt: 1 }}>
                             Authenticity Score
                           </Typography>
                         </Box>
                       </Grid>
 
+                      {/* Right side - Details */}
                       <Grid item xs={12} md={8}>
                         <Box sx={{ mb: 2 }}>
-                          <Typography variant="subtitle2" gutterBottom>Credential Details</Typography>
+                          <Typography variant="subtitle2" gutterBottom>
+                            Credential Details
+                          </Typography>
+
                           {result.credentialId && (
                             <Typography variant="body2">
                               <strong>ID:</strong> {result.credentialId}
                             </Typography>
                           )}
+
                           {result.credentialType && (
                             <Typography variant="body2">
                               <strong>Type:</strong> {result.credentialType}
@@ -290,7 +346,13 @@ const VerifierPortal = () => {
                         </Box>
 
                         {result.details && (
-                          <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 2 }}>
+                          <Box
+                            sx={{
+                              display: 'grid',
+                              gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+                              gap: 2
+                            }}
+                          >
                             <Card variant="outlined">
                               <CardContent>
                                 <Typography variant="subtitle2">Hash Integrity</Typography>
@@ -299,6 +361,7 @@ const VerifierPortal = () => {
                                 </Typography>
                               </CardContent>
                             </Card>
+
                             <Card variant="outlined">
                               <CardContent>
                                 <Typography variant="subtitle2">IPFS Document</Typography>
@@ -307,6 +370,7 @@ const VerifierPortal = () => {
                                 </Typography>
                               </CardContent>
                             </Card>
+
                             <Card variant="outlined">
                               <CardContent>
                                 <Typography variant="subtitle2">Signature</Typography>
@@ -326,6 +390,8 @@ const VerifierPortal = () => {
           </Grid>
         </Paper>
       </Box>
+
+      {/* QR Scanner modal */}
       <QRScanner
         open={scannerOpen}
         onScan={handleScanQR}
@@ -336,4 +402,3 @@ const VerifierPortal = () => {
 };
 
 export default VerifierPortal;
-
